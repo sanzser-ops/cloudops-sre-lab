@@ -23,13 +23,13 @@ Hands-on lab for learning and demonstrating CloudOps, DevOps and Site Reliabilit
 - Incident response and troubleshooting
 - Reliability engineering
 
-## Cost policy
+## Cost Policy
 
-The lab aims to minimize costs and avoid unnecessary AWS charges.
-Local tools and virtual machines are preferred whenever practical.
-No AWS infrastructure is deployed without reviewing its potential costs first.
+The lab aims to maintain a zero-cost operating model.
+Local virtual machines and free, open-source tools are preferred.
+No AWS infrastructure will be deployed without reviewing its potential costs first.
 
-## Repository structure
+## Repository Structure
 
 - `terraform/`: Infrastructure as Code
 - `ansible/`: Configuration management
