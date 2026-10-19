@@ -136,3 +136,27 @@ output "key_pair_name" {
   description = "Name of the SSH key pair"
   value       = aws_key_pair.lab.key_name
 }
+resource "aws_instance" "lab" {
+  ami                         = "ami-051ef443317b2de18"
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.lab.id]
+  key_name                    = aws_key_pair.lab.key_name
+  associate_public_ip_address = true
+
+  tags = {
+    Name        = "cloudops-sre-lab-ec2"
+    Project     = "cloudops-sre-lab"
+    Environment = "lab"
+  }
+}
+
+output "instance_id" {
+  description = "ID of the lab EC2 instance"
+  value       = aws_instance.lab.id
+}
+
+output "instance_public_ip" {
+  description = "Public IP of the lab EC2 instance"
+  value       = aws_instance.lab.public_ip
+}
