@@ -60,3 +60,34 @@ output "public_subnet_id" {
   description = "ID of the public subnet"
   value       = aws_subnet.public.id
 }
+resource "aws_internet_gateway" "lab" {
+  vpc_id = aws_vpc.lab.id
+
+  tags = {
+    Name    = "cloudops-sre-lab-igw"
+    Project = "cloudops-sre-lab"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.lab.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.lab.id
+  }
+
+  tags = {
+    Name    = "cloudops-sre-lab-public-rt"
+    Project = "cloudops-sre-lab"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+output "internet_gateway_id" {
+  description = "ID of the lab Internet Gateway"
+  value       = aws_internet_gateway.lab.id
+}
