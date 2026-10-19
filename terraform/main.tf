@@ -122,3 +122,17 @@ output "security_group_id" {
   description = "ID of the lab security group"
   value       = aws_security_group.lab.id
 }
+resource "aws_key_pair" "lab" {
+  key_name   = "cloudops-sre-lab-key"
+  public_key = file(pathexpand("~/.ssh/cloudops-sre-lab-aws.pub"))
+
+  tags = {
+    Name    = "cloudops-sre-lab-key"
+    Project = "cloudops-sre-lab"
+  }
+}
+
+output "key_pair_name" {
+  description = "Name of the SSH key pair"
+  value       = aws_key_pair.lab.key_name
+}
