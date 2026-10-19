@@ -22,64 +22,83 @@ footer{margin-top:18px;color:#86efac}
 <body>
 <h1>CloudOps / SRE Lab</h1>
 <p>EC2 · Prometheus + Node Exporter · Actualización cada 15 segundos</p>
+
 <div class="cards">
  <div class="card">
   <div class="top"><span>CPU utilizada</span><span id="cpuState" class="badge">—</span></div>
-  <div id="cpu" class="value">Cargando…</div><small class="muted">Warning ≥ 70 % · Critical ≥ 90 %</small>
+  <div id="cpu" class="value">Cargando…</div>
+  <small class="muted">Warning ≥ 70 % · Critical ≥ 90 %</small>
  </div>
  <div class="card">
   <div class="top"><span>Memoria utilizada</span><span id="ramState" class="badge">—</span></div>
-  <div id="ram" class="value">Cargando…</div><small class="muted">Warning ≥ 80 % · Critical ≥ 90 %</small>
+  <div id="ram" class="value">Cargando…</div>
+  <small class="muted">Warning ≥ 80 % · Critical ≥ 90 %</small>
  </div>
  <div class="card">
   <div class="top"><span>Disco raíz disponible</span><span id="diskState" class="badge">—</span></div>
-  <div id="disk" class="value">Cargando…</div><small class="muted">Warning ≤ 2 GiB · Critical ≤ 1 GiB</small>
+  <div id="disk" class="value">Cargando…</div>
+  <small class="muted">Warning ≤ 2 GiB · Critical ≤ 1 GiB</small>
  </div>
 </div>
-<section id="alerts" style="margin:20px 0;background:#1e293b;padding:20px;border-radius:12px">
-<h3 style="margin-top:0">Alertas de infraestructura</h3>
-<div id="alertList">Comprobando métricas…</div>
+
+<section style="margin:20px 0">
+ <h3 style="margin-top:0">Alertas de infraestructura · Prometheus</h3>
+ <div id="alertList">Consultando alertas nativas…</div>
 </section>
+
 <div class="charts">
  <section><h3>CPU (%) · últimos 15 min</h3><canvas id="cpuChart"></canvas></section>
  <section><h3>Memoria (%) · últimos 15 min</h3><canvas id="ramChart"></canvas></section>
  <section><h3>Disco libre (GiB) · últimos 15 min</h3><canvas id="diskChart"></canvas></section>
 </div>
+
 <footer id="status">Conectando con Prometheus…</footer>
+
 <script>
 const API='http://localhost:19091/api/v1/query';
+const ALERTS_API='http://localhost:19091/api/v1/alerts';
 const history={cpu:[],ram:[],disk:[]};
 const WINDOW_MS=15*60*1000;
+
 async function query(expr){
  const r=await fetch(API+'?query='+encodeURIComponent(expr));
- if(!r.ok)throw Error('HTTP '+r.status);
+ if(!r.ok)throw Error('HTTP '+r.status+' consultando métricas');
  const j=await r.json();
  if(j.status!=='success'||!j.data.result.length)throw Error('No hay datos para una consulta');
  return Number(j.data.result[0].value[1]);
 }
+
 function state(value,warning,critical,invert=false){
  if(invert?value<=critical:value>=critical)return ['CRITICAL','critical'];
  if(invert?value<=warning:value>=warning)return ['WARNING','warning'];
  return ['OK','ok'];
 }
+
 function setCard(id,valueId,value,unit,limits,invert=false){
  const [label,cls]=state(value,limits[0],limits[1],invert);
  const badge=document.getElementById(id);
- badge.textContent=label;badge.className='badge '+cls;
+ badge.textContent=label;
+ badge.className='badge '+cls;
  document.getElementById(valueId).textContent=value.toFixed(2)+unit;
  document.getElementById(valueId).className='value '+cls;
 }
+
 function add(key,value){
- const now=Date.now();history[key].push({t:now,v:value});
+ const now=Date.now();
+ history[key].push({t:now,v:value});
  history[key]=history[key].filter(p=>p.t>=now-WINDOW_MS);
 }
+
 function draw(id,key,max){
  const c=document.getElementById(id),w=c.clientWidth,h=190,dpr=window.devicePixelRatio||1;
  c.width=w*dpr;c.height=h*dpr;
  const x=c.getContext('2d');x.scale(dpr,dpr);
  x.strokeStyle='#475569';x.lineWidth=1;
- for(let i=1;i<4;i++){x.beginPath();x.moveTo(0,h*i/4);x.lineTo(w,h*i/4);x.stroke()}
- const points=history[key];if(points.length<2)return;
+ for(let i=1;i<4;i++){
+  x.beginPath();x.moveTo(0,h*i/4);x.lineTo(w,h*i/4);x.stroke();
+ }
+ const points=history[key];
+ if(points.length<2)return;
  const first=points[0].t,last=points[points.length-1].t,span=Math.max(last-first,15000);
  x.strokeStyle='#38bdf8';x.lineWidth=2;x.beginPath();
  points.forEach((p,i)=>{
@@ -89,6 +108,7 @@ function draw(id,key,max){
  });
  x.stroke();
 }
+
 async function refresh(){
  try{
   const [cpu,ram,disk]=await Promise.all([
@@ -96,31 +116,58 @@ async function refresh(){
    query('100*(1-node_memory_MemAvailable_bytes/node_memory_MemTotal_bytes)'),
    query('node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}/1024^3')
   ]);
+
   setCard('cpuState','cpu',cpu,'%',[70,90]);
   setCard('ramState','ram',ram,'%',[80,90]);
   setCard('diskState','disk',disk,' GiB',[2,1],true);
-  const alerts=[];
-  if(ram>=90) alerts.push(['CRITICAL','Memoria utilizada por encima del 90 %']);
-  else if(ram>=80) alerts.push(['WARNING','Memoria utilizada por encima del 80 %']);
-  if(disk<=1) alerts.push(['CRITICAL','Menos de 1 GiB de disco disponible']);
-  else if(disk<=2) alerts.push(['WARNING','Menos de 2 GiB de disco disponible']);
-  if(cpu>=90) alerts.push(['CRITICAL','CPU utilizada por encima del 90 %']);
-  else if(cpu>=70) alerts.push(['WARNING','CPU utilizada por encima del 70 %']);
+
+  const alertsResponse=await fetch(ALERTS_API);
+  if(!alertsResponse.ok)throw Error('HTTP '+alertsResponse.status+' consultando alertas');
+  const alertsData=await alertsResponse.json();
+  if(alertsData.status!=='success')throw Error('Respuesta inválida de la API de alertas');
+
+  const nativeAlerts=alertsData.data.alerts||[];
   const list=document.getElementById('alertList');
-  list.innerHTML=alerts.length
-    ? alerts.map(([level,msg])=>'<p class="'+(level==='CRITICAL'?'critical':'warning')+'"><strong>'+level+'</strong> — '+msg+'</p>').join('')
-    : '<p class="ok">OK — No hay alertas activas.</p>';
+
+  if(nativeAlerts.length){
+   list.innerHTML=nativeAlerts.map(alert=>{
+    const level=(alert.labels?.severity||'warning').toLowerCase();
+    const cls=level==='critical'?'critical':'warning';
+    const alertState=(alert.state||'pending').toUpperCase();
+    const name=alert.labels?.alertname||'Alerta';
+    const summary=alert.annotations?.summary||name;
+    const description=alert.annotations?.description||'';
+    return '<p class="'+cls+'"><strong>'+alertState+' · '+level.toUpperCase()+
+      '</strong> — '+summary+'<br><small>'+description+'</small></p>';
+   }).join('');
+  }else{
+   list.innerHTML='<p class="ok">OK — No hay alertas nativas activas.</p>';
+  }
+
   add('cpu',cpu);add('ram',ram);add('disk',disk);
-  draw('cpuChart','cpu',100);draw('ramChart','ram',100);draw('diskChart','disk',8);
+  draw('cpuChart','cpu',100);
+  draw('ramChart','ram',100);
+  draw('diskChart','disk',8);
+
   const now=new Date().toLocaleTimeString();
-  document.getElementById('status').textContent='CONNECTED · Última actualización: '+now+' · Historial local: '+history.cpu.length+' puntos';
+  document.getElementById('status').textContent=
+   'CONNECTED · Última actualización: '+now+
+   ' · Historial local: '+history.cpu.length+' puntos';
+  document.getElementById('status').className='';
  }catch(e){
-  document.getElementById('status').textContent='ERROR · '+e.message+' · Comprueba el túnel SSH a Prometheus.';
+  document.getElementById('status').textContent=
+   'ERROR · '+e.message+' · Comprueba los túneles SSH a Prometheus.';
   document.getElementById('status').className='critical';
  }
 }
-refresh();setInterval(refresh,15000);
-window.addEventListener('resize',()=>{draw('cpuChart','cpu',100);draw('ramChart','ram',100);draw('diskChart','disk',8)});
+
+refresh();
+setInterval(refresh,15000);
+window.addEventListener('resize',()=>{
+ draw('cpuChart','cpu',100);
+ draw('ramChart','ram',100);
+ draw('diskChart','disk',8);
+});
 </script>
 </body>
 </html>

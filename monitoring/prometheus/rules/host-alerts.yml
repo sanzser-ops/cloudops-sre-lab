@@ -1,0 +1,47 @@
+groups:
+  - name: host-resource-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage has exceeded 70% for more than 5 minutes."
+
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage has exceeded 80% for more than 5 minutes."
+
+      - alert: CriticalMemoryUsage
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage has exceeded 90% for more than 2 minutes."
+
+      - alert: LowRootDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / 1024^3 < 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low root disk space on {{ $labels.instance }}"
+          description: "Less than 2 GiB of root filesystem space remains."
+
+      - alert: CriticalRootDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / 1024^3 < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical root disk space on {{ $labels.instance }}"
+          description: "Less than 1 GiB of root filesystem space remains."
