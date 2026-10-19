@@ -91,3 +91,34 @@ output "internet_gateway_id" {
   description = "ID of the lab Internet Gateway"
   value       = aws_internet_gateway.lab.id
 }
+resource "aws_security_group" "lab" {
+  name        = "cloudops-sre-lab-sg"
+  description = "Restricted SSH access for the CloudOps SRE lab"
+  vpc_id      = aws_vpc.lab.id
+
+  ingress {
+    description = "SSH from my public IP only"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["113.203.182.254/32"]
+  }
+
+  egress {
+    description = "Allow outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "cloudops-sre-lab-sg"
+    Project = "cloudops-sre-lab"
+  }
+}
+
+output "security_group_id" {
+  description = "ID of the lab security group"
+  value       = aws_security_group.lab.id
+}
