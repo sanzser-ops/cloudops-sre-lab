@@ -44,3 +44,19 @@ output "vpc_cidr" {
   description = "CIDR block of the lab VPC"
   value       = aws_vpc.lab.cidr_block
 }
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.lab.id
+  cidr_block              = "10.20.1.0/24"
+  availability_zone       = "eu-west-1a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "cloudops-sre-lab-public-subnet"
+    Project = "cloudops-sre-lab"
+  }
+}
+
+output "public_subnet_id" {
+  description = "ID of the public subnet"
+  value       = aws_subnet.public.id
+}
