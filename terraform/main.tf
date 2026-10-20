@@ -96,14 +96,9 @@ resource "aws_security_group" "lab" {
   description = "Restricted SSH access for the CloudOps SRE lab"
   vpc_id      = aws_vpc.lab.id
 
-  ingress {
-    description = "SSH from my public IP only"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["113.203.182.254/32"]
+  lifecycle {
+    ignore_changes = [ingress]
   }
-
   egress {
     description = "Allow outbound traffic"
     from_port   = 0
@@ -122,6 +117,24 @@ output "security_group_id" {
   description = "ID of the lab security group"
   value       = aws_security_group.lab.id
 }
+
+resource "aws_vpc_security_group_ingress_rule" "ssh_my_ip" {
+  security_group_id = aws_security_group.lab.id
+  cidr_ipv4         = "113.203.182.254/32"
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  description       = "SSH from my public IP only"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "ssh_ec2_instance_connect" {
+  security_group_id = aws_security_group.lab.id
+  prefix_list_id    = "pl-0839cc4c195a4e751"
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+}
+
 resource "aws_key_pair" "lab" {
   key_name   = "cloudops-sre-lab-key"
   public_key = file(pathexpand("~/.ssh/cloudops-sre-lab-aws.pub"))
