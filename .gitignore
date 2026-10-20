@@ -59,3 +59,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# Local Ansible inventory
+/ansible/inventory.ini
+/ansible/inventory.ini.bak

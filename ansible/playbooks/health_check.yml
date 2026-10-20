@@ -1,0 +1,49 @@
+---
+- name: Linux servers health check
+  hosts: linux_servers
+  gather_facts: true
+
+  tasks:
+    - name: Show operating system
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Check uptime
+      ansible.builtin.command: uptime -p
+      register: uptime_result
+      changed_when: false
+
+    - name: Show uptime
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - {{ uptime_result.stdout }}"
+
+    - name: Check disk usage
+      ansible.builtin.command: df -h /
+      register: disk_result
+      changed_when: false
+
+    - name: Show disk usage
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - {{ disk_result.stdout_lines }}"
+
+    - name: Alert if root disk usage exceeds 80 percent
+      ansible.builtin.assert:
+        that:
+          - (ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_total') | first - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first) * 100 / (ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_total') | first) <= 80
+        fail_msg: "CRITICAL: Root disk usage exceeds 80% on {{ inventory_hostname }}"
+        success_msg: "OK: Root disk usage is within the 80% threshold on {{ inventory_hostname }}"
+
+    - name: Show memory information
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} -
+          Total RAM: {{ ansible_memtotal_mb }} MB;
+          available (including reclaimable cache):
+          {{ ansible_memory_mb.nocache.free }} MB;
+          used: {{
+            (
+              100 *
+              (ansible_memtotal_mb - ansible_memory_mb.nocache.free)
+              / ansible_memtotal_mb
+            ) | round(1)
+          }}%
